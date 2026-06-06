@@ -1361,22 +1361,6 @@ hermes dashboard
 hermes dashboard --port 8080 --no-open
 ```
 
-### `hermes dashboard register`
-
-Register this install as a self-hosted dashboard with your Nous Portal account, so the dashboard's OAuth (Nous) auth gate can be used. Resolves your existing Nous login (run `hermes setup` first if you're not logged in), creates an OAuth client, writes `HERMES_DASHBOARD_OAUTH_CLIENT_ID` into `~/.hermes/.env`, and prints how to engage the login gate. You can also register, name, and revoke dashboards from the Portal [`/local-dashboards`](https://portal.nousresearch.com/local-dashboards) page.
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--name` | auto-generated | Human-readable label for the dashboard |
-| `--redirect-uri` | — | Public HTTPS OAuth redirect URI for an internet-facing host, e.g. `https://hermes.example.com/auth/callback`. Omit for localhost-only use. |
-
-```bash
-hermes dashboard register
-# ✓ Registered dashboard "swift_falcon"
-# …writes HERMES_DASHBOARD_OAUTH_CLIENT_ID to ~/.hermes/.env
-```
-
-
 ## `hermes profile`
 
 ```bash
@@ -1445,6 +1429,8 @@ Pulls the latest `hermes-agent` code and reinstalls dependencies in your venv, t
 
 **pip installs:** `hermes update` detects pip-based installations automatically — it queries PyPI for the latest release and runs `pip install --upgrade hermes-agent` instead of `git pull`. PyPI releases track tagged versions (major/minor releases), not every commit on `main`. Use `--check` to see if a newer PyPI release is available without installing.
 
+**git installs:** `hermes update` pulls the configured update branch (default: `main`). If your checkout is on another branch, Hermes may check out the update branch before pulling. Commit branch work before updating when you want to keep it outside the update autostash flow.
+
 | Option | Description |
 |--------|-------------|
 | `--gateway` | Internal mode used by the messaging `/update` command. Uses file-based IPC for prompts and progress streaming instead of reading from terminal stdin. Not a gateway restart flag. |
@@ -1456,6 +1442,8 @@ Pulls the latest `hermes-agent` code and reinstalls dependencies in your venv, t
 Additional behavior:
 
 - **Gateway restart.** After a successful update, Hermes attempts to restart all running gateway profiles automatically so they pick up the new code. Use `hermes gateway restart` when you want to restart a gateway without applying an update.
+- **Local source changes.** For git installs, dirty tracked files and untracked files are auto-stashed before branch checkout or pull (`git stash push --include-untracked`). Interactive terminal updates ask before restoring the stash. Non-interactive updates restore it by default; set `updates.non_interactive_local_changes: discard` only on managed installs where local source edits should be thrown away after a successful pull. If stash restore conflicts or the pull fails, the stash is left in place for manual recovery.
+- **npm lockfile churn.** Before stashing or switching branches, Hermes makes a best-effort cleanup of tracked `package-lock.json` diffs produced by npm install/build steps. Commit or manually stash intentional lockfile edits before running `hermes update`.
 - **Pairing data snapshot.** Even when `--backup` is off, `hermes update` takes a lightweight snapshot of `~/.hermes/pairing/` and the Feishu comment rules before `git pull`. You can roll it back with `hermes backup restore --state pre-update` if a pull rewrites a file you were editing.
 - **Legacy `hermes.service` warning.** If Hermes detects a pre-rename `hermes.service` systemd unit (instead of the current `hermes-gateway.service`), it prints a one-time migration hint so you can avoid flap-loop issues.
 - **Exit codes.** `0` on success, `1` on pull/install/post-install errors, `2` on unexpected working-tree changes that block `git pull`.
